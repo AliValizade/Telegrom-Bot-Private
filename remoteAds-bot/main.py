@@ -1,14 +1,28 @@
 import mysql.connector
+import re
 from telebot import TeleBot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 
+from telebot.storage import StateMemoryStorage
+from telebot.handler_backends import State, StatesGroup
+from telebot import custom_filters
+
 from config import *
 
+state_storage = StateMemoryStorage()
 
-bot = TeleBot(token=TOKEN)
+bot = TeleBot(token=TOKEN, state_storage=state_storage)
 
+############################################## Classes ##############################################
+class Support(StatesGroup):
+    text = State()
+    respond = State()
 
 ############################################## Functions ##############################################
+
+def escape_special_characters(text):
+    special_characters = r"[\*\_\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!]"
+    return re.sub(special_characters, r'\\\g<0>', text)
 
 def check_join(user, channels):
     for i in channels:
@@ -103,6 +117,44 @@ def account(m):
                      👤 نام کاربری: <a href='tg://user?id={m.from_user.id}'>{m.from_user.first_name}</a>
                      🆔 شناسه کاربری: <code>{m.from_user.id}</code>
                      💲 موجودی: {balance[0]} تومان""", parse_mode='HTML')
+    
+############################################## Support State handlers ##############################################
+
+@bot.message_handler(func=lambda m: m.text == "☎ پشتیبانی")
+def sup(m):
+    bot.send_message(chat_id=m.chat.id, text="""لطفا پیام خود را ارسال کنید:""")
+    bot.set_state(user_id=m.from_user.id, state=Support.text, chat_id=m.chat.id)
+    
+@bot.message_handler(state=Support.text)
+def sup_text(m):
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton(text='پاسخ', callback_data='m.from_user.id'))
+    bot.send_message(chat_id=95045499, text=f"""یک پیام از <code>{m.from_user.id}</code> با نام کاربری @{m.from_user.username} دریافت شد:
+                     متن پیام:
+                     <b>{escape_special_characters(m.text)}</b>""", reply_markup=markup, parse_mode='HTML')
+    bot.send_message(chat_id=m.chat.id, text='پیام شما برای ادمین ارسال شد.')
+
+    texts[m.from_user.id] = m.text
+
+    bot.delete_state(user_id=m.from_user.id, chat_id=m.chat.id)
+
+@bot.message_handler(state=Support.respond)
+def answer_text(m):
+    chat_id = chat_ids[-1]
+
+    if chat_id in texts:
+        bot.send_message(chat_id=chat_id, text=f"""پیام شما:
+                         <i>{escape_special_characters(texts[chat_id])}</i>
+                         پاسخ پشتیبانی:
+                         <b>{escape_special_characters(m.text)}</b>""", parse_mode="HTML")
+        bot.send_message(chat_id=m.chat.id, text='پاسخ شما ارسال شد.')
+
+        del texts[chat_id]
+        chat_ids.remove(chat_id)
+    else:
+        bot.send_message(chat_id=m.chat.id, text='اشتباهی رخ داده، لطفا دوباره تلاش کنید.')
+
+    bot.delete_state(user_id=m.from_user.id, chat_id=m.chat.id)
 
 ############################################## callback lang ##############################################
 
@@ -141,7 +193,7 @@ def farsi(call):
                      با این ربات میتوانید آگهی های خود را بصورت خودکار در کانال آگهی724 ثبت کنید.
                      Change Language:👉 /lang""", parse_mode='HTML', reply_markup=markup)
     
-############################################## ##############################################
+############################################## Forced join ##############################################
 
 @bot.callback_query_handler(func=lambda call: call.data == 'proceed')
 def proceed(call):
@@ -155,8 +207,20 @@ def proceed(call):
     else:
         bot.send_message(chat_id=call.message.chat.id, text='شما میتوانید از ربات استفاده کنید')
 
-############################################## ##############################################
+############################################## Support callback handler ##############################################
+
+@bot.callback_query_handler(func=lambda call: True)
+def answer(call):
+    bot.send_message(chat_id=call.message.chat.id, text=f"ارسال پیام به <code>{call.from_user.id}</code>:", parse_mode='HTML')
+
+    chat_ids.append(call.from_user.id)
+
+    bot.set_state(user_id=call.from_user.id, state=Support.respond, chat_id=call.message.chat.id)
+        
+
+############################################## polling() ##############################################
 
 if __name__ == "__main__":
+    bot.add_custom_filter(custom_filters.StateFilter(bot))
     bot.remove_webhook()
     bot.infinity_polling()
