@@ -13,13 +13,12 @@ state_storage = StateMemoryStorage()
 
 bot = TeleBot(token=TOKEN, state_storage=state_storage)
 
-############################################## Classes ##############################################
+############################################## Classes 
 class Support(StatesGroup):
     text = State()
     respond = State()
 
-############################################## Functions ##############################################
-
+############################################## Functions 
 def escape_special_characters(text):
     special_characters = r"[\*\_\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!]"
     return re.sub(special_characters, r'\\\g<0>', text)
@@ -40,8 +39,7 @@ def user_balance(user):
             result = cursor.fetchone()
     return result
 
-############################################## Start ##############################################
-
+############################################## Start 
 @bot.message_handler(commands=['start'])
 def start(m):
     with mysql.connector.connect(**db_config) as connection:
@@ -96,8 +94,7 @@ def start(m):
     #     print("خطای دیتابیس:", err)
     #     bot.send_message(chat_id=m.chat.id, text='سلام کاربر قدیمی', reply_markup=markup)
 
-############################################## change language ##############################################
-
+############################################## change language 
 @bot.message_handler(commands=['lang'])
 def change_lang(m):
     markup = InlineKeyboardMarkup(row_width=1)
@@ -108,8 +105,7 @@ def change_lang(m):
     bot.send_message(chat_id=m.chat.id, text="""کاربر گرامی لطفا زبان خود را انتخاب کنید:
                      Please select your language:""", reply_markup=markup)
     
-############################################## Reply Keyboard ##############################################
-
+############################################## Reply Keyboard 
 @bot.message_handler(func=lambda m: m.text == "👤 حساب کاربری")
 def account(m):
     balance = user_balance(user=m.from_user.id)
@@ -118,8 +114,7 @@ def account(m):
                      🆔 شناسه کاربری: <code>{m.from_user.id}</code>
                      💲 موجودی: {balance[0]} تومان""", parse_mode='HTML')
     
-############################################## Support State handlers ##############################################
-
+############################################## Support State handlers 
 @bot.message_handler(func=lambda m: m.text == "☎ پشتیبانی")
 def sup(m):
     bot.send_message(chat_id=m.chat.id, text="""لطفا پیام خود را ارسال کنید:""")
@@ -156,8 +151,7 @@ def answer_text(m):
 
     bot.delete_state(user_id=m.from_user.id, chat_id=m.chat.id)
 
-############################################## callback lang ##############################################
-
+############################################## callback lang 
 @bot.callback_query_handler(func=lambda call: call.data == 'en')
 def english(call):
     with mysql.connector.connect(**db_config) as connection:
@@ -193,8 +187,7 @@ def farsi(call):
                      با این ربات میتوانید آگهی های خود را بصورت خودکار در کانال آگهی724 ثبت کنید.
                      Change Language:👉 /lang""", parse_mode='HTML', reply_markup=markup)
     
-############################################## Forced join ##############################################
-
+############################################## Forced join 
 @bot.callback_query_handler(func=lambda call: call.data == 'proceed')
 def proceed(call):
     is_member = check_join(user=call.from_user.id, channels=channels)
@@ -207,8 +200,31 @@ def proceed(call):
     else:
         bot.send_message(chat_id=call.message.chat.id, text='شما میتوانید از ربات استفاده کنید')
 
-############################################## Support callback handler ##############################################
+############################################## charge account
 
+@bot.message_handler(func=lambda m: m.text == "💲 شارژ حساب")
+def charge_account(m):
+    markup = InlineKeyboardMarkup(row_width=1)
+    btn1 = InlineKeyboardButton(text='10.000 تومان', callback_data='10')
+    btn2 = InlineKeyboardButton(text='20.000 تومان', callback_data='20')
+    markup.add(btn1, btn2)
+    bot.send_message(chat_id=m.chat.id, text='مبلغ موردنظر خود را انتخاب کنید:', reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data == '10')
+def ten(call):
+    markup = InlineKeyboardMarkup(row_width=1)
+    btn = InlineKeyboardButton(text='پرداخت', url=f"https://youraddress/zarinpal/request/?user={call.from_user.id}")
+    markup.add(btn)
+    bot.send_message(chat_id=call.message.chat.id, text='لینک پرداخت:', reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data == '20')
+def twenty(call):
+    markup = InlineKeyboardMarkup(row_width=1)
+    btn = InlineKeyboardButton(text='پرداخت', url=f"https://youraddress/zarinpal/request/?user={call.from_user.id}")
+    markup.add(btn)
+    bot.send_message(chat_id=call.message.chat.id, text='لینک پرداخت:', reply_markup=markup)
+
+############################################## Support callback handler 
 @bot.callback_query_handler(func=lambda call: True)
 def answer(call):
     bot.send_message(chat_id=call.message.chat.id, text=f"ارسال پیام به <code>{call.from_user.id}</code>:", parse_mode='HTML')
@@ -216,10 +232,8 @@ def answer(call):
     chat_ids.append(call.from_user.id)
 
     bot.set_state(user_id=call.from_user.id, state=Support.respond, chat_id=call.message.chat.id)
-        
 
-############################################## polling() ##############################################
-
+############################################## polling() 
 if __name__ == "__main__":
     bot.add_custom_filter(custom_filters.StateFilter(bot))
     bot.remove_webhook()
