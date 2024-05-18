@@ -2,7 +2,7 @@ import mysql.connector
 from mysql.connector import errorcode
 import re
 from telebot import TeleBot
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, Message, CallbackQuery
 
 from telebot.storage import StateMemoryStorage
 from telebot.handler_backends import State, StatesGroup
@@ -44,12 +44,13 @@ create_accounts_table()
 ##############################################
 state_storage = StateMemoryStorage()
 
-bot = TeleBot(token=TOKEN, state_storage=state_storage)
+bot = TeleBot(token=TOKEN, state_storage=state_storage, parse_mode='HTML')
 
 ############################################## Classes 
 class Support(StatesGroup):
     text = State()
     respond = State()
+    ads = State()
 
 ############################################## Functions 
 def escape_special_characters(text):
@@ -87,7 +88,7 @@ def start(m):
                     sql = f"UPDATE accounts SET balance = balance + 10000 WHERE id = {token[1]}"
                     cursor.execute(sql)
                     connection.commit()
-                    
+
                 sql = f"INSERT INTO accounts(id) VALUES ({m.from_user.id})"
                 cursor.execute(sql)
                 connection.commit()
@@ -108,7 +109,7 @@ def start(m):
                     bot.send_message(chat_id=m.chat.id, text=f"""سلام <b>{m.from_user.first_name}</b>,
                                      به ربات ما خوش آمدید، ⚡
                                      با این ربات میتوانید آگهی های خود را بصورت خودکار در کانال آگهی724 ثبت کنید.
-                                     Change Language:👉 /lang""", parse_mode='HTML', reply_markup=markup)
+                                     Change Language:👉 /lang""", reply_markup=markup)
                 else:
                     markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
                     markup.add("➕ Submit Ads")
@@ -117,7 +118,7 @@ def start(m):
                     bot.send_message(chat_id=m.chat.id, text=f"""ٌHi <b>{m.from_user.first_name}</b>,
                                      Welcome to my bot, ⚡
                                      With this robot, you can automatically register your ads in agahi724 channel.
-                                     تغییر زبان:👉 /lang""", parse_mode='HTML', reply_markup=markup)
+                                     تغییر زبان:👉 /lang""", reply_markup=markup)
 
     # markup = InlineKeyboardMarkup()
     # button = InlineKeyboardButton(text='ادامه', callback_data='proceed')
@@ -151,8 +152,54 @@ def account(m):
     bot.send_message(chat_id=m.chat.id, text=f"""ℹ اطلاعات حساب کاربری شما:
                      👤 نام کاربری: <a href='tg://user?id={m.from_user.id}'>{m.from_user.first_name}</a>
                      🆔 شناسه کاربری: <code>{m.from_user.id}</code>
-                     💲 موجودی: {balance[0]} تومان""", parse_mode='HTML')
-    
+                     💲 موجودی: {balance[0]} تومان""")
+
+############################################## Submit Ads
+@bot.message_handler(func=lambda m: m.text == "➕ ثبت آگهی")
+def get_ads(m: Message):
+    bot.send_message(chat_id=m.chat.id, text="""لطفا آگهی خود را ارسال کنید:""")
+    bot.set_state(user_id=m.from_user.id, state=Support.ads, chat_id=m.chat.id)
+
+@bot.message_handler(state=Support.ads)
+def get_ad(m: Message):
+    markup = InlineKeyboardMarkup(row_width=2)
+    btn1 = InlineKeyboardButton(text='رد کردن', callback_data='deny')
+    btn2 = InlineKeyboardButton(text='تایید کردن', callback_data='confirm')
+    markup.add(btn1, btn2)
+    forwarded_m = bot.forward_message(chat_id=admins[0], from_chat_id=m.chat.id, message_id=m.message_id)
+    bot.send_message(chat_id=admins[0], text=f"درخواست ثبت آگهی از سمت کاربر:‌ @{m.from_user.username}\nid: {m.from_user.id}", reply_markup=markup, reply_to_message_id=forwarded_m.message_id)
+    bot.send_message(chat_id=m.chat.id, text='آگهی شما در صورت تایید ادمین تا ساعاتی دیگر منتشر میشود.')
+    bot.delete_state(user_id=m.from_user.id, chat_id=m.chat.id)
+
+@bot.callback_query_handler(func=lambda call: call.data == 'deny')
+def deny(call: CallbackQuery):
+    pattern = r'id: \d+'
+    user = re.findall(pattern=pattern, string=call.message.text)[0].split()[1]
+    markup = InlineKeyboardMarkup()
+    btn = InlineKeyboardButton(text='درخواست رد شد😢', callback_data='aaa')
+    markup.add(btn)
+    bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup)
+    bot.send_message(chat_id=int(user), text='متاسفانه درخواست شما توسط ادمین رد شد.⛔')
+
+@bot.callback_query_handler(func=lambda call: call.data == 'confirm')
+def confirm(call: CallbackQuery):
+    pattern = r'id: \d+'
+    user = re.findall(pattern=pattern, string=call.message.text)[0].split()[1]
+    markup1 = InlineKeyboardMarkup()
+    btn1 = InlineKeyboardButton(text='جهت ثبت آگهی جدید کلیک کنید ➕', callback_data='aaaa')
+    markup1.add(btn1)
+    bot.copy_message(
+        chat_id=-1002111355264, 
+        from_chat_id=call.message.chat.id, 
+        message_id=call.message.reply_to_message.message_id, 
+        reply_markup=markup1
+        )
+    markup2 = InlineKeyboardMarkup()
+    btn2 = InlineKeyboardButton(text='درخواست تایید شد😉', callback_data='aaa')
+    markup2.add(btn2)
+    bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup2)
+    bot.send_message(chat_id=int(user), text='آگهی شما با موفقیت ثبت شد.✅')
+
 ############################################## Support State handlers 
 @bot.message_handler(func=lambda m: m.text == "☎ پشتیبانی")
 def sup(m):
@@ -165,7 +212,7 @@ def sup_text(m):
     markup.add(InlineKeyboardButton(text='پاسخ', callback_data='m.from_user.id'))
     bot.send_message(chat_id=95045499, text=f"""یک پیام از <code>{m.from_user.id}</code> با نام کاربری @{m.from_user.username} دریافت شد:
                      متن پیام:
-                     <b>{escape_special_characters(m.text)}</b>""", reply_markup=markup, parse_mode='HTML')
+                     <b>{escape_special_characters(m.text)}</b>""", reply_markup=markup)
     bot.send_message(chat_id=m.chat.id, text='پیام شما برای ادمین ارسال شد.')
 
     texts[m.from_user.id] = m.text
@@ -180,7 +227,7 @@ def answer_text(m):
         bot.send_message(chat_id=chat_id, text=f"""پیام شما:
                          <i>{escape_special_characters(texts[chat_id])}</i>
                          پاسخ پشتیبانی:
-                         <b>{escape_special_characters(m.text)}</b>""", parse_mode="HTML")
+                         <b>{escape_special_characters(m.text)}</b>""")
         bot.send_message(chat_id=m.chat.id, text='پاسخ شما ارسال شد.')
 
         del texts[chat_id]
@@ -206,7 +253,7 @@ def english(call):
     bot.send_message(chat_id=call.message.chat.id, text=f"""ٌHi <b>{call.from_user.first_name}</b>,
                      Welcome to my bot, ⚡
                      With this robot, you can automatically register your ads in agahi724 channel.
-                     تغییر زبان:👉 /lang""", parse_mode='HTML', reply_markup=markup)
+                     تغییر زبان:👉 /lang""", reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'fa')
@@ -224,7 +271,7 @@ def farsi(call):
     bot.send_message(chat_id=call.message.chat.id, text=f"""سلام <b>{call.from_user.first_name}</b>,
                      به ربات ما خوش آمدید، ⚡
                      با این ربات میتوانید آگهی های خود را بصورت خودکار در کانال آگهی724 ثبت کنید.
-                     Change Language:👉 /lang""", parse_mode='HTML', reply_markup=markup)
+                     Change Language:👉 /lang""", reply_markup=markup)
     
 ############################################## Forced join 
 @bot.callback_query_handler(func=lambda call: call.data == 'proceed')
@@ -273,7 +320,7 @@ https://t.me/Remote_project_bot?start={m.from_user.id}""")
 ############################################## Support callback handler 
 @bot.callback_query_handler(func=lambda call: True)
 def answer(call):
-    bot.send_message(chat_id=call.message.chat.id, text=f"ارسال پیام به <code>{call.from_user.id}</code>:", parse_mode='HTML')
+    bot.send_message(chat_id=call.message.chat.id, text=f"ارسال پیام به <code>{call.from_user.id}</code>:")
 
     chat_ids.append(call.from_user.id)
 
