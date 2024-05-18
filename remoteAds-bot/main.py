@@ -1,4 +1,5 @@
 import mysql.connector
+from mysql.connector import errorcode
 import re
 from telebot import TeleBot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
@@ -9,6 +10,38 @@ from telebot import custom_filters
 
 from config import *
 
+############################################## Create accounts table in Database 
+def create_accounts_table():
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS accounts (
+        id BIGINT PRIMARY KEY,
+        balance INT DEFAULT 0,
+        lang VARCHAR(255) DEFAULT 'fa'
+    );
+    """
+    try:
+        # Establish the connection
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        # Execute the query
+        cursor.execute(create_table_query)
+        # Commit the changes
+        connection.commit()
+        print("Table 'accounts' created successfully.")
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
+            print("Table already exists.")
+        else:
+            print(f"Error: {err.msg}")
+    finally:
+        # Close the cursor and connection
+        cursor.close()
+        connection.close()
+
+# Call the function to create the table
+create_accounts_table()
+
+##############################################
 state_storage = StateMemoryStorage()
 
 bot = TeleBot(token=TOKEN, state_storage=state_storage)
@@ -32,7 +65,7 @@ def check_join(user, channels):
     return True
 
 def user_balance(user):
-    sql = f"SELECT balance FROM users WHERE id = {user}"
+    sql = f"SELECT balance FROM accounts WHERE id = {user}"
     with mysql.connector.connect(**db_config) as connection:
         with connection.cursor() as cursor:
             cursor.execute(sql)
@@ -44,12 +77,18 @@ def user_balance(user):
 def start(m):
     with mysql.connector.connect(**db_config) as connection:
         with connection.cursor() as cursor:
-            sql = f"SELECT lang FROM users WHERE id = {m.from_user.id}"
+            sql = f"SELECT lang FROM accounts WHERE id = {m.from_user.id}"
             cursor.execute(sql)
             result = cursor.fetchone()
 
             if result is None:
-                sql = f"INSERT INTO users(id) VALUES ({m.from_user.id})"
+                token = m.text.split()
+                if len(token) > 1:
+                    sql = f"UPDATE accounts SET balance = balance + 10000 WHERE id = {token[1]}"
+                    cursor.execute(sql)
+                    connection.commit()
+                    
+                sql = f"INSERT INTO accounts(id) VALUES ({m.from_user.id})"
                 cursor.execute(sql)
                 connection.commit()
 
@@ -86,7 +125,7 @@ def start(m):
     # try:
     #     with mysql.connector.connect(**db_config) as connection:
     #         with connection.cursor() as cursor:
-    #             sql = f'INSERT INTO users (id) VALUES ({m.from_user.id})'
+    #             sql = f'INSERT INTO accounts (id) VALUES ({m.from_user.id})'
     #             cursor.execute(sql)
     #             connection.commit()
     #     bot.send_message(chat_id=m.chat.id, text='سلام کاربر جدید', reply_markup=markup)
@@ -156,7 +195,7 @@ def answer_text(m):
 def english(call):
     with mysql.connector.connect(**db_config) as connection:
         with connection.cursor() as cursor:
-            sql = f"UPDATE users SET lang = 'en' WHERE id = {call.from_user.id}"
+            sql = f"UPDATE accounts SET lang = 'en' WHERE id = {call.from_user.id}"
             cursor.execute(sql)
             connection.commit()
 
@@ -174,7 +213,7 @@ def english(call):
 def farsi(call):
     with mysql.connector.connect(**db_config) as connection:
         with connection.cursor() as cursor:
-            sql = f"UPDATE users SET lang = 'fa' WHERE id = {call.from_user.id}"
+            sql = f"UPDATE accounts SET lang = 'fa' WHERE id = {call.from_user.id}"
             cursor.execute(sql)
             connection.commit()
 
@@ -200,8 +239,7 @@ def proceed(call):
     else:
         bot.send_message(chat_id=call.message.chat.id, text='شما میتوانید از ربات استفاده کنید')
 
-############################################## charge account
-
+############################################## charge account handler
 @bot.message_handler(func=lambda m: m.text == "💲 شارژ حساب")
 def charge_account(m):
     markup = InlineKeyboardMarkup(row_width=1)
@@ -223,6 +261,14 @@ def twenty(call):
     btn = InlineKeyboardButton(text='پرداخت', url=f"https://youraddress/zarinpal/request/?user={call.from_user.id}")
     markup.add(btn)
     bot.send_message(chat_id=call.message.chat.id, text='لینک پرداخت:', reply_markup=markup)
+
+############################################## Referral link handler
+@bot.message_handler(func=lambda m: m.text == "👨‍👦‍👦 زیرمجموعه گیری")
+def referral(m):
+    with open('ref.jpg', 'rb') as photo:
+        bot.send_photo(chat_id=m.chat.id, photo=photo, caption=f"""این لینک رفرال شماست:
+                       
+https://t.me/Remote_project_bot?start={m.from_user.id}""")
 
 ############################################## Support callback handler 
 @bot.callback_query_handler(func=lambda call: True)
