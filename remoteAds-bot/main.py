@@ -50,6 +50,7 @@ class Support(StatesGroup):
     text = State()
     respond = State()
     ads = State()
+    ad_type = State()
 
 # Functions 
 def escape_special_characters(text):
@@ -155,12 +156,28 @@ def account(m):
 
 # Submit Ads
 @bot.message_handler(func=lambda m: m.text == "➕ ثبت آگهی")
-def get_ads(m: Message):
-    bot.send_message(chat_id=m.chat.id, text="""لطفا آگهی خود را ارسال کنید:""")
+def select_ad_type(m: Message):
+    markup = InlineKeyboardMarkup(row_width=3)
+    btn1 = InlineKeyboardButton(text='کارجو ', callback_data='worker')
+    btn2 = InlineKeyboardButton(text='کارفرما', callback_data='employer')
+    btn3 = InlineKeyboardButton(text='فروشنده', callback_data='seller')
+    markup.add(btn1, btn2, btn3)
+    bot.send_message(chat_id=m.chat.id, text="""لطفا نوع آگهی خود را انتخاب کنید:""", reply_markup=markup)
     bot.set_state(user_id=m.from_user.id, state=Support.ads, chat_id=m.chat.id)
 
+@bot.callback_query_handler(func=lambda call: call.data in ['worker', 'employer', 'seller'])
+def ad_title(call: CallbackQuery):
+    global title
+    if call.data == 'worker':
+        title = 'انجام دهنده هستم'
+    elif call.data == 'employer':
+        title = 'درخواست کننده هستم'
+    elif call.data == 'seller':
+        title = 'فروشنده هستم'
+    bot.send_message(chat_id=call.message.chat.id, text='لطفا متن آگهی خود را ارسال کنید:')
+
 @bot.message_handler(state=Support.ads)
-def get_ad(m: Message):
+def check_ad_request(m: Message):
     markup = InlineKeyboardMarkup(row_width=2)
     btn1 = InlineKeyboardButton(text='رد کردن', callback_data='deny')
     btn2 = InlineKeyboardButton(text='تایید کردن', callback_data='confirm')
@@ -192,11 +209,11 @@ def confirm(call: CallbackQuery):
         message_id=call.message.reply_to_message.message_id
     )
     # Get the text of the forwarded message
-    message_text = forwarded_message.text
+    message_text = '📌' + title + '\n\n' + forwarded_message.text
 
     # Create the inline keyboard for the published ad
-    markup1 = InlineKeyboardMarkup(row_width=1)
-    btn1 = InlineKeyboardButton(text='➕ جهت ثبت آگهی جدید کلیک کنید', callback_data='aaaa', url='https://t.me/Remote_project_bot')
+    markup1 = InlineKeyboardMarkup(row_width=2)
+    btn1 = InlineKeyboardButton(text='➕ ثبت آگهی جدید', callback_data='aaaa', url='https://t.me/Remote_project_bot')
     btn2 = InlineKeyboardButton(text='☎ پشتیبانی', callback_data='aaaa', url='https://t.me/TitechCo')
     markup1.add(btn1, btn2)
 
