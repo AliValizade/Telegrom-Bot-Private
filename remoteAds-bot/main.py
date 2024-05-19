@@ -104,10 +104,10 @@ def start(m):
                 if result[0] == 'fa':
                     markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
                     markup.add("➕ ثبت آگهی")
-                    markup.add("👤 حساب کاربری", "💲 شارژ حساب", "👨‍👦‍👦 زیرمجموعه گیری", "☎ پشتیبانی")
+                    markup.add("👤 حساب کاربری", "💲 حمایت از کانال", "👨‍👦‍👦 زیرمجموعه گیری", "☎ پشتیبانی")
 
                     bot.send_message(chat_id=m.chat.id, text=f"""سلام <b>{m.from_user.first_name}</b>,
-                                     به ربات ما خوش آمدید، ⚡
+                                     به ربات درج آگهی رایگان خوش آمدید، ⚡
                                      با این ربات میتوانید آگهی های خود را بصورت خودکار در کانال آگهی724 ثبت کنید.
                                      Change Language:👉 /lang""", reply_markup=markup)
                 else:
@@ -241,7 +241,7 @@ def sup(m):
 @bot.message_handler(state=Support.text)
 def sup_text(m):
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(text='پاسخ', callback_data='m.from_user.id'))
+    markup.add(InlineKeyboardButton(text='پاسخ', callback_data=m.from_user.id))
     bot.send_message(chat_id=95045499, text=f"""یک پیام از <code>{m.from_user.id}</code> با نام کاربری @{m.from_user.username} دریافت شد:
                      متن پیام:
                      <b>{escape_special_characters(m.text)}</b>""", reply_markup=markup)
@@ -305,36 +305,36 @@ def farsi(call):
                      با این ربات میتوانید آگهی های خود را بصورت خودکار در کانال آگهی724 ثبت کنید.
                      Change Language:👉 /lang""", reply_markup=markup)
     
-# Forced join 
-@bot.callback_query_handler(func=lambda call: call.data == 'proceed')
-def proceed(call):
-    is_member = check_join(user=call.from_user.id, channels=channels)
+# # Forced join 
+# @bot.callback_query_handler(func=lambda call: call.data == 'proceed')
+# def proceed(call):
+#     is_member = check_join(user=call.from_user.id, channels=channels)
 
-    if is_member is False:
-        markup = InlineKeyboardMarkup()
-        button = InlineKeyboardButton(text='تایید', callback_data='proceed')
-        markup.add(button)
-        bot.send_message(chat_id=call.message.chat.id, text='باید در کانال ما عضو شوید @Remote_ad , @Remote_ads')
-    else:
-        bot.send_message(chat_id=call.message.chat.id, text='شما میتوانید از ربات استفاده کنید')
+#     if is_member is False:
+#         markup = InlineKeyboardMarkup()
+#         button = InlineKeyboardButton(text='تایید', callback_data='proceed')
+#         markup.add(button)
+#         bot.send_message(chat_id=call.message.chat.id, text='باید در کانال ما عضو شوید @Remote_ad , @Remote_ads')
+#     else:
+#         bot.send_message(chat_id=call.message.chat.id, text='شما میتوانید از ربات استفاده کنید')
 
 # charge account handler
-@bot.message_handler(func=lambda m: m.text == "💲 شارژ حساب")
+@bot.message_handler(func=lambda m: m.text == "💲 حمایت از کانال")
 def charge_account(m):
     markup = InlineKeyboardMarkup(row_width=1)
-    btn1 = InlineKeyboardButton(text='10.000 تومان', callback_data='10')
-    btn2 = InlineKeyboardButton(text='20.000 تومان', callback_data='20')
+    btn1 = InlineKeyboardButton(text='50.000 تومان', callback_data='50')
+    btn2 = InlineKeyboardButton(text='25.000 تومان', callback_data='25')
     markup.add(btn1, btn2)
-    bot.send_message(chat_id=m.chat.id, text='مبلغ موردنظر خود را انتخاب کنید:', reply_markup=markup)
+    bot.send_message(chat_id=m.chat.id, text='مبلغ موردنظر خود را جهت حمایت از کانال انتخاب کنید:', reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda call: call.data == '10')
+@bot.callback_query_handler(func=lambda call: call.data == '50')
 def ten(call):
     markup = InlineKeyboardMarkup(row_width=1)
     btn = InlineKeyboardButton(text='پرداخت', url=f"https://youraddress/zarinpal/request/?user={call.from_user.id}")
     markup.add(btn)
     bot.send_message(chat_id=call.message.chat.id, text='لینک پرداخت:', reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda call: call.data == '20')
+@bot.callback_query_handler(func=lambda call: call.data == '25')
 def twenty(call):
     markup = InlineKeyboardMarkup(row_width=1)
     btn = InlineKeyboardButton(text='پرداخت', url=f"https://youraddress/zarinpal/request/?user={call.from_user.id}")
@@ -352,9 +352,9 @@ https://t.me/Remote_project_bot?start={m.from_user.id}""")
 # Support callback handler 
 @bot.callback_query_handler(func=lambda call: True)
 def answer(call):
-    bot.send_message(chat_id=call.message.chat.id, text=f"ارسال پیام به <code>{call.from_user.id}</code>:")
+    bot.send_message(chat_id=call.message.chat.id, text=f"ارسال پیام به <code>{call.data}</code>:")
 
-    chat_ids.append(call.from_user.id)
+    chat_ids.append(int(call.data))
 
     bot.set_state(user_id=call.from_user.id, state=Support.respond, chat_id=call.message.chat.id)
 
