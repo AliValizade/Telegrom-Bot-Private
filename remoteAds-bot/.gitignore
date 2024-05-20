@@ -16,4 +16,6 @@ venv.bak/
 .cloud/
 /.cloud
 
+test.py
+
 config.py

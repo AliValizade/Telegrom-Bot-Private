@@ -2,6 +2,7 @@ import mysql.connector
 from mysql.connector import errorcode
 import re
 from telebot import TeleBot
+from telebot import formatting
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, Message, CallbackQuery
 
 from telebot.storage import StateMemoryStorage
@@ -38,6 +39,27 @@ def create_accounts_table():
         cursor.close()
         connection.close()
 
+def delete_row_from_accounts(ids):
+    format_strings = ','.join(['%s'] * len(ids))
+    delete_row_query = f"DELETE FROM accounts WHERE id IN ({format_strings});"
+    try:
+        # Establish the connection
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        # Execute the query
+        cursor.execute(delete_row_query, ids)
+        # Commit the changes
+        connection.commit()
+        print("The row deleted successfully.")
+    except mysql.connector.Error as err:
+        print(f"Error: {err.msg}")
+    finally:
+        # Close the cursor and connection
+        cursor.close()
+        connection.close()
+
+# Call the function to delete rows, fill the list by ids you want to delete.
+delete_row_from_accounts([])
 # Call the function to create the table
 create_accounts_table()
 
@@ -76,63 +98,68 @@ def user_balance(user):
 # Start 
 @bot.message_handler(commands=['start'])
 def start(m):
-    with mysql.connector.connect(**db_config) as connection:
-        with connection.cursor() as cursor:
-            sql = f"SELECT lang FROM accounts WHERE id = {m.from_user.id}"
-            cursor.execute(sql)
-            result = cursor.fetchone()
+    markup2 = InlineKeyboardMarkup()
+    button = InlineKeyboardButton(text='کانال درج آگهی رایگان', callback_data='proceed', url='https://t.me/remote_ads')
+    markup2.add(button)
+    try:
+        with mysql.connector.connect(**db_config) as connection:
+            with connection.cursor() as cursor:
+                sql = f'INSERT INTO accounts (id) VALUES ({m.from_user.id})'
+                cursor.execute(sql)
+                connection.commit()
+        bot.send_message(chat_id=m.chat.id, text='سلام کاربر جدید\nبرای استفاده از امکانات ربات و درج آگهی لطفا در کانال آگهی رایگان ما عضو شوید.', reply_markup=markup2)
+    except mysql.connector.Error as err:
+        print("خطای دیتابیس:", err)
+        # bot.send_message(chat_id=m.chat.id, text='سلام کاربر قدیمی', reply_markup=markup2)
+        with mysql.connector.connect(**db_config) as connection:
+            with connection.cursor() as cursor:
+                sql = f"SELECT lang FROM accounts WHERE id = {m.from_user.id}"
+                cursor.execute(sql)
+                result = cursor.fetchone()
 
-            if result is None:
-                token = m.text.split()
-                if len(token) > 1:
-                    sql = f"UPDATE accounts SET balance = balance + 10000 WHERE id = {token[1]}"
+                if result is None:
+                    token = m.text.split()
+                    if len(token) > 1:
+                        sql = f"UPDATE accounts SET balance = balance + 10000 WHERE id = {token[1]}"
+                        cursor.execute(sql)
+                        connection.commit()
+
+                    sql = f"INSERT INTO accounts(id) VALUES ({m.from_user.id})"
                     cursor.execute(sql)
                     connection.commit()
 
-                sql = f"INSERT INTO accounts(id) VALUES ({m.from_user.id})"
-                cursor.execute(sql)
-                connection.commit()
+                    markup = InlineKeyboardMarkup(row_width=1)
+                    button1 = InlineKeyboardButton(text='English', callback_data='en')
+                    button2 = InlineKeyboardButton(text='فارسی', callback_data='fa')
+                    markup.add(button1, button2)
 
-                markup = InlineKeyboardMarkup(row_width=1)
-                button1 = InlineKeyboardButton(text='English', callback_data='en')
-                button2 = InlineKeyboardButton(text='فارسی', callback_data='fa')
-                markup.add(button1, button2)
+                    bot.send_message(chat_id=m.chat.id, text='کاربر گرامی لطفا زبان خود را انتخاب کنید:\nPlease select your language:', reply_markup=markup)
 
-                bot.send_message(chat_id=m.chat.id, text='کاربر گرامی لطفا زبان خود را انتخاب کنید:\nPlease select your language:', reply_markup=markup)
-
-            else:
-                if result[0] == 'fa':
-                    markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-                    markup.add("➕ ثبت آگهی")
-                    markup.add("👤 حساب کاربری", "💲 حمایت از کانال", "👨‍👦‍👦 زیرمجموعه گیری", "☎ پشتیبانی")
-
-                    bot.send_message(chat_id=m.chat.id, text=f"""سلام <b>{m.from_user.first_name}</b>,
-                                     به ربات درج آگهی رایگان خوش آمدید، ⚡
-                                     با این ربات میتوانید آگهی های خود را بصورت خودکار در کانال آگهی724 ثبت کنید.
-                                     Change Language:👉 /lang""", reply_markup=markup)
                 else:
-                    markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-                    markup.add("➕ Submit Ads")
-                    markup.add("👤 My Account", "💲 Add Funds", "👨‍👦‍👦 Referral", "☎ Support")
+                    if result[0] == 'fa':
+                        markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+                        markup.add("➕ ثبت آگهی")
+                        markup.add("👤 حساب کاربری", "💲 حمایت از کانال", "👨‍👦‍👦 زیرمجموعه گیری", "☎ پشتیبانی")
 
-                    bot.send_message(chat_id=m.chat.id, text=f"""ٌHi <b>{m.from_user.first_name}</b>,
-                                     Welcome to my bot, ⚡
-                                     With this robot, you can automatically register your ads in agahi724 channel.
-                                     تغییر زبان:👉 /lang""", reply_markup=markup)
+                        bot.send_message(chat_id=m.chat.id, text=formatting.format_text(
+                            formatting.hbold(f'سلام {m.from_user.first_name}'),
+                            formatting.hbold(f'⚡ به ربات درج آگهی رایگان خوش آمدید'),
+                            formatting.hitalic(f'با این ربات میتوانید آگهی های خود را بصورت خودکار در کانال درج آگهی رایگان'),
+                            formatting.hunderline('@remote_ads'),
+                            formatting.hitalic('ثبت کنید.'),
+                            separator="\n"
+                            ),
+                            reply_markup=markup)
+                    else:
+                        markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+                        markup.add("➕ Submit Ads")
+                        markup.add("👤 My Account", "💲 Add Funds", "👨‍👦‍👦 Referral", "☎ Support")
 
-    # markup = InlineKeyboardMarkup()
-    # button = InlineKeyboardButton(text='ادامه', callback_data='proceed')
-    # markup.add(button)
-    # try:
-    #     with mysql.connector.connect(**db_config) as connection:
-    #         with connection.cursor() as cursor:
-    #             sql = f'INSERT INTO accounts (id) VALUES ({m.from_user.id})'
-    #             cursor.execute(sql)
-    #             connection.commit()
-    #     bot.send_message(chat_id=m.chat.id, text='سلام کاربر جدید', reply_markup=markup)
-    # except mysql.connector.Error as err:
-    #     print("خطای دیتابیس:", err)
-    #     bot.send_message(chat_id=m.chat.id, text='سلام کاربر قدیمی', reply_markup=markup)
+                        bot.send_message(chat_id=m.chat.id, text=f"""ٌHi <b>{m.from_user.first_name}</b>,
+                                        Welcome to my bot, ⚡
+                                        With this robot, you can automatically register your ads in agahi724 channel.
+                                        تغییر زبان:👉 /lang""", reply_markup=markup)
+
 
 # change language 
 @bot.message_handler(commands=['lang'])
@@ -201,7 +228,7 @@ def deny(call: CallbackQuery):
 def confirm(call: CallbackQuery):
     pattern = r'id: \d+'
     user = re.findall(pattern=pattern, string=call.message.text)[0].split()[1]
-
+    username = call.message.text.split("@")[1].split("\n")[0]
     # Fetch the message text from the forwarded message
     forwarded_message = bot.forward_message(
         chat_id=call.message.chat.id, 
@@ -209,7 +236,7 @@ def confirm(call: CallbackQuery):
         message_id=call.message.reply_to_message.message_id
     )
     # Get the text of the forwarded message
-    message_text = '📌' + title + '\n\n' + forwarded_message.text
+    message_text = '📌 ' + title + '\n\n' + forwarded_message.text + '\n' + '============' + '\n' + '@' + username
 
     # Create the inline keyboard for the published ad
     markup1 = InlineKeyboardMarkup(row_width=2)
@@ -305,18 +332,18 @@ def farsi(call):
                      با این ربات میتوانید آگهی های خود را بصورت خودکار در کانال آگهی724 ثبت کنید.
                      Change Language:👉 /lang""", reply_markup=markup)
     
-# # Forced join 
-# @bot.callback_query_handler(func=lambda call: call.data == 'proceed')
-# def proceed(call):
-#     is_member = check_join(user=call.from_user.id, channels=channels)
+# Forced join 
+@bot.callback_query_handler(func=lambda call: call.data == 'proceed')
+def proceed(call):
+    is_member = check_join(user=call.from_user.id, channels=channels)
 
-#     if is_member is False:
-#         markup = InlineKeyboardMarkup()
-#         button = InlineKeyboardButton(text='تایید', callback_data='proceed')
-#         markup.add(button)
-#         bot.send_message(chat_id=call.message.chat.id, text='باید در کانال ما عضو شوید @Remote_ad , @Remote_ads')
-#     else:
-#         bot.send_message(chat_id=call.message.chat.id, text='شما میتوانید از ربات استفاده کنید')
+    if is_member is False:
+        markup = InlineKeyboardMarkup()
+        button = InlineKeyboardButton(text='تایید', callback_data='proceed')
+        markup.add(button)
+        bot.send_message(chat_id=call.message.chat.id, text='جهت درج آگهی رایگان در کانال ما عضو شوید @Remote_ads', reply_markup=markup)
+    else:
+        bot.send_message(chat_id=call.message.chat.id, text='شما میتوانید از ربات استفاده کنید')
 
 # charge account handler
 @bot.message_handler(func=lambda m: m.text == "💲 حمایت از کانال")
