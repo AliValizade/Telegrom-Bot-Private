@@ -242,7 +242,8 @@ def confirm(call: CallbackQuery):
     markup1 = InlineKeyboardMarkup(row_width=2)
     btn1 = InlineKeyboardButton(text='➕ ثبت آگهی جدید', callback_data='aaaa', url='https://t.me/Remote_project_bot')
     btn2 = InlineKeyboardButton(text='☎ پشتیبانی', callback_data='aaaa', url='https://t.me/TitechCo')
-    markup1.add(btn1, btn2)
+    btn3 = InlineKeyboardButton(text='⚡ هشدارها', callback_data='alarm')
+    markup1.add(btn1, btn2, btn3)
 
     # Send the message to the channel with the inline keyboard
     bot.send_message(
@@ -258,6 +259,17 @@ def confirm(call: CallbackQuery):
 
     # Notify the user that their ad was approved
     bot.send_message(chat_id=int(user), text='آگهی شما با موفقیت ثبت شد.✅')
+
+# Show alarm
+@bot.callback_query_handler(func=lambda call: call.data == 'alarm')
+def alarm(call: CallbackQuery):
+    alert_text = (
+        '⚡ هشدار ⚡\n\n'
+        '⛔ به هیچ وجه برای هیچ شخصی پیش‌پرداخت انجام ندهید.\n'
+        '✅ پرداخت مطمئن با واسطه قراردادن ادمین\n'
+        '✅ ارتباط با ادمین فقط و فقط از طریق دکمه‌ی پشتیبانی و یا آی‌دی TitechCo@.'
+    )
+    bot.answer_callback_query(callback_query_id=call.id, text=alert_text, show_alert=True)
 
 # Support State handlers 
 @bot.message_handler(func=lambda m: m.text == "☎ پشتیبانی")
