@@ -196,9 +196,9 @@ def select_ad_type(m: Message):
 def ad_title(call: CallbackQuery):
     global title
     if call.data == 'worker':
-        title = 'انجام دهنده هستم'
+        title = 'انجام دهنده (کارجو) هستم'
     elif call.data == 'employer':
-        title = 'درخواست کننده هستم'
+        title = 'کارفرما هستم'
     elif call.data == 'seller':
         title = 'فروشنده هستم'
     bot.send_message(chat_id=call.message.chat.id, text='لطفا متن آگهی خود را ارسال کنید:')
@@ -240,7 +240,7 @@ def confirm(call: CallbackQuery):
 
     # Create the inline keyboard for the published ad
     markup1 = InlineKeyboardMarkup(row_width=2)
-    btn1 = InlineKeyboardButton(text='➕ ثبت آگهی جدید', callback_data='aaaa', url='https://t.me/Remote_project_bot')
+    btn1 = InlineKeyboardButton(text='➕ ثبت آگهی جدید', callback_data='aaaa', url='https://t.me/smartads_bot')
     btn2 = InlineKeyboardButton(text='☎ پشتیبانی', callback_data='aaaa', url='https://t.me/TitechCo')
     btn3 = InlineKeyboardButton(text='⚡ هشدارها', callback_data='alarm')
     markup1.add(btn1, btn2, btn3)
@@ -386,7 +386,7 @@ def referral(m):
     with open('ref.jpg', 'rb') as photo:
         bot.send_photo(chat_id=m.chat.id, photo=photo, caption=f"""این لینک رفرال شماست:
                        
-https://t.me/Remote_project_bot?start={m.from_user.id}""")
+https://t.me/smartads_bot?start={m.from_user.id}""")
 
 # Support callback handler 
 @bot.callback_query_handler(func=lambda call: True)
