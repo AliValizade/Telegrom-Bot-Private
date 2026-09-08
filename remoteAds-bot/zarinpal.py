@@ -9,7 +9,7 @@ app = Flask(__name__)
 amount = 10000 # Amount based on Rial & required
 description = u'توضیحات تراکنش تست' # Description required
 email = 'user@gmail.com' # Email optional
-mobile = '09123456789' # Phone number optional
+mobile = '09111111111' # Phone number optional
 
 # Temporary storage for user ID
 user = {}
